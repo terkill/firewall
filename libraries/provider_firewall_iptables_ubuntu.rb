@@ -34,8 +34,8 @@ class Chef
       next if disabled?(new_resource)
 
       converge_by('install iptables and enable/start services') do
-        # Can't pass an array without breaking chef 11 support
-        %w(iptables-persistent).each do |p|
+    # Can't pass an array without breaking chef 11 support
+        packages.each do |p|
           package p do
             action :install
           end
@@ -50,7 +50,7 @@ class Chef
           end
         end
 
-        service 'iptables-persistent' do
+        service service_name do
           action [:enable, :start]
         end
       end
@@ -110,7 +110,7 @@ class Chef
 
         # if the file was changed, restart iptables
         next unless iptables_file.updated_by_last_action?
-        service_affected = service 'iptables-persistent' do
+        service_affected = service service_name do
           action :nothing
         end
 
@@ -126,7 +126,7 @@ class Chef
       iptables_default_allow!(new_resource)
       new_resource.updated_by_last_action(true)
 
-      service 'iptables-persistent' do
+      service service_name do
         action [:disable, :stop]
       end
 
@@ -153,6 +153,22 @@ class Chef
           content '# created by chef to allow service to start'
         end
       end
+    end
+
+    def service_name
+        if node['platform'] == 'debian' && node['platform_version'].to_i >= 8
+            'netfilter-persistent'
+        else
+            'iptables-persistent'
+        end
+    end
+
+    def packages
+        if node['platform'] == 'debian' && node['platform_version'].to_i >= 8
+            %w(iptables-persistent netfilter-persistent)
+        else
+            %w(iptables-persistent)
+        end
     end
   end
 end
